@@ -568,6 +568,17 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <div class="share-container">
+          <button class="share-button" aria-label="Share this activity" title="Share this activity">
+            📤 Share
+          </button>
+          <div class="share-dropdown hidden">
+            <a class="share-option" data-platform="twitter" href="#" role="button">𝕏 Twitter</a>
+            <a class="share-option" data-platform="facebook" href="#" role="button">📘 Facebook</a>
+            <a class="share-option" data-platform="whatsapp" href="#" role="button">💬 WhatsApp</a>
+            <a class="share-option" data-platform="copy" href="#" role="button">🔗 Copy Link</a>
+          </div>
+        </div>
       </div>
     `;
 
@@ -586,6 +597,80 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add share button functionality
+    const shareButton = activityCard.querySelector(".share-button");
+    const shareDropdown = activityCard.querySelector(".share-dropdown");
+
+    // Build a URL with the activity name as a fragment for a direct activity link
+    const activityUrl = `${window.location.origin}${window.location.pathname}#${encodeURIComponent(name)}`;
+    // Strip any HTML tags from text used in social share payloads
+    const stripHtml = (str) => {
+      const div = document.createElement("div");
+      div.innerHTML = str;
+      return div.textContent || div.innerText || "";
+    };
+    const safeDesc = stripHtml(details.description);
+    const safeSchedule = stripHtml(formattedSchedule);
+
+    shareButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      // Close all other open dropdowns first
+      document.querySelectorAll(".share-dropdown").forEach((dropdown) => {
+        if (dropdown !== shareDropdown) {
+          dropdown.classList.add("hidden");
+        }
+      });
+
+      // Use the Web Share API if available (mainly on mobile)
+      if (navigator.share) {
+        navigator.share({
+          title: name,
+          text: `Check out this activity: ${name} – ${safeDesc} (${safeSchedule})`,
+          url: activityUrl,
+        }).catch(() => {});
+      } else {
+        shareDropdown.classList.toggle("hidden");
+      }
+    });
+
+    shareDropdown.querySelectorAll(".share-option").forEach((option) => {
+      option.addEventListener("click", (event) => {
+        event.preventDefault();
+        const platform = option.dataset.platform;
+        const shareText = `Check out this activity: ${name} – ${safeDesc} (${safeSchedule})`;
+        const shareUrl = activityUrl;
+
+        if (platform === "twitter") {
+          window.open(
+            `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+            "_blank",
+            "noopener,noreferrer"
+          );
+        } else if (platform === "facebook") {
+          window.open(
+            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
+            "_blank",
+            "noopener,noreferrer"
+          );
+        } else if (platform === "whatsapp") {
+          window.open(
+            `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`,
+            "_blank",
+            "noopener,noreferrer"
+          );
+        } else if (platform === "copy") {
+          navigator.clipboard.writeText(shareText + " " + shareUrl).then(() => {
+            showMessage("Activity link copied to clipboard!", "success");
+          }).catch(() => {
+            showMessage("Could not copy to clipboard.", "error");
+          });
+        }
+
+        shareDropdown.classList.add("hidden");
+      });
+    });
 
     activitiesList.appendChild(activityCard);
   }
@@ -672,6 +757,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === registrationModal) {
       closeRegistrationModalHandler();
     }
+  });
+
+  // Close share dropdowns when clicking outside
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".share-dropdown").forEach((dropdown) => {
+      dropdown.classList.add("hidden");
+    });
   });
 
   // Create and show confirmation dialog
